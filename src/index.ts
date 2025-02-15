@@ -1,20 +1,39 @@
-// import type { Core } from '@strapi/strapi';
-
 export default {
-  /**
-   * An asynchronous register function that runs before
-   * your application is initialized.
-   *
-   * This gives you an opportunity to extend code.
-   */
-  register(/* { strapi }: { strapi: Core.Strapi } */) {},
+  register() {},
+  bootstrap({ strapi }: { strapi: any }) {
+    const { Server } = require("socket.io");
 
-  /**
-   * An asynchronous bootstrap function that runs before
-   * your application gets started.
-   *
-   * This gives you an opportunity to set up your data model,
-   * run jobs, or perform some special logic.
-   */
-  bootstrap(/* { strapi }: { strapi: Core.Strapi } */) {},
+    if (!strapi.server.httpServer) {
+      console.error("⚠️ Strapi HTTP server is not available.");
+      return;
+    }
+
+    const io = new Server(strapi.server.httpServer, {
+      cors: {
+        origin: "*",
+        methods: ["GET", "POST"],
+        allowedHeaders: ["my-custom-header"],
+        credentials: true,
+      },
+    });
+
+    io.on("connection", (socket : any) => {
+      console.log("✅ A user connected:", socket.id);
+
+      // Echo message back to the same user
+      socket.on("send-message", (msg : any) => {
+        console.log(`📩 Received from ${socket.id}: ${msg}`);
+
+        // Server responds with the same message
+        socket.emit("receive-message", msg);
+      });
+
+      socket.on("disconnect", () => {
+        console.log("❌ A user disconnected:", socket.id);
+      });
+    });
+
+    strapi.io = io;
+    console.log("🚀 Socket.IO initialized successfully!");
+  },
 };
